@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<package>
+	<metadata>
+		<id>RdfTurtleWriter</id>
+		<version>%VERSION%</version>
+		<title>RdfTurtleWriter</title>
+		<authors>VIS/University of Stuttgart, Florian Haag</authors>
+		<owners>Florian Haag</owners>
+		<projectUrl>http://rdf-utilities-dotnet.github.io/RdfTurtleWriter/</projectUrl>
+		<iconUrl>http://rdf-utilities-dotnet.github.io/RdfTurtleWriter/img/logo128.png</iconUrl>
+		<licenseUrl>http://rdf-utilities-dotnet.github.io/RdfTurtleWriter/license.html</licenseUrl>
+		<requireLicenseAcceptance>false</requireLicenseAcceptance>
+		<summary>A simple class for sequentially writing Turtle RDF files.</summary>
+		<description>A simple .NET/Mono class for sequentially writing RDF files in W3C Turtle format.</description>
+		<releaseNotes>Stable Release</releaseNotes>
+		<copyright>Copyright 2015 by VIS/University of Stuttgart</copyright>
+		<tags>RDF SemanticWeb Turtle</tags>
+		<dependencies>
+			<dependency id="dotNetRDF" version="1.0.9"/>
+		</dependencies>
+	</metadata>
+	<files>
+		<file src="..\bin\Release\RdfTurtleWriter.dll" target="lib\Net40"/>
+		<file src="..\bin\Release\RdfTurtleWriter.xml" target="lib\Net40"/>
+	</files>
+</package>

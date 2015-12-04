@@ -41,7 +41,7 @@ namespace Rdf.Turtle
 	///   The data is written sequentially, so as to minimize the memory footprint.
 	///   As such, the class is suitable for writing large amounts of data into files, as possibly happens in data export or conversion scenarios.</para>
 	/// </remarks>
-	internal class SequentialTurtleWriter : IDisposable
+	public class SequentialTurtleWriter : IDisposable
 	{
 		/// <summary>
 		/// Initializes a new instance.

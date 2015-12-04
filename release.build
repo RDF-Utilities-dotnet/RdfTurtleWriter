@@ -1,0 +1,386 @@
+﻿<?xml version="1.0"?>
+<!--
+This source file is a part of RdfTurtleWriter.
+
+Copyright (c) 2015 Florian Haag
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+-->
+<project name="RdfTurtleWriter Release" default="help" basedir=".">
+	<property name="release.version" value="0.0.0" overwrite="false"/>
+	
+	<xmlpeek file="pubinfo/projectinfo.xml" xpath="/local:project/local:id" property="project.id">
+		<namespaces>
+			<namespace prefix="local" uri="http://local/"/>
+		</namespaces>
+	</xmlpeek>
+	<xmlpeek file="pubinfo/projectinfo.xml" xpath="/local:project/local:prettyId" property="project.prettyId">
+		<namespaces>
+			<namespace prefix="local" uri="http://local/"/>
+		</namespaces>
+	</xmlpeek>
+	<xmlpeek file="pubinfo/projectinfo.xml" xpath="/local:project/local:title" property="project.name">
+		<namespaces>
+			<namespace prefix="local" uri="http://local/"/>
+		</namespaces>
+	</xmlpeek>
+	
+	<xmlpeek file="pubinfo/projectinfo.xml" xpath="/local:project/local:id[@service = 'Github']" property="project.GithubProject" failonerror="false">
+		<namespaces>
+			<namespace prefix="local" uri="http://local/"/>
+		</namespaces>
+	</xmlpeek>
+	<if test="${not(property::exists('project.GithubProject'))}">
+		<property name="project.GithubProject" value="${project.id}"/>
+	</if>
+	
+	<tstamp property="internal.userFriendlyDate" pattern="yyyy-MM-dd"/>
+	<tstamp property="internal.isoDate" pattern="O"/>
+	
+	<property name="internal.prerelease" value="no"/>
+	<regex input="${release.version}" pattern="^[0-9]+(\.[0-9]+)*(?'releasetag'(-[^\-\.]+)?)$"/>
+	<property name="internal.prerelease" value="yes" if="${string::get-length(releasetag)>0}"/>
+	<property name="internal.ReleaseState" value="prerelease" if="${internal.prerelease=='yes'}"/>
+	<property name="internal.ReleaseState" value="stable" if="${internal.prerelease=='no'}"/>
+	
+	<xmlpeek file="pubinfo/projectinfo.xml" xpath="/local:project/local:downloads/@baseUrl" property="tmp.downloadsBaseUrl">
+		<namespaces>
+			<namespace prefix="local" uri="http://local/"/>
+		</namespaces>
+	</xmlpeek>
+	<property name="internal.downloadsBaseUrl" value="${string::replace(string::replace(tmp.downloadsBaseUrl, '%VERSION%', release.version), '%DATE%', internal.userFriendlyDate)}" overwrite="false"/>
+	<xmlpeek file="pubinfo/projectinfo.xml" xpath="/local:project/local:downloads/local:file[@type = 'src']" property="tmp.srcFilename">
+		<namespaces>
+			<namespace prefix="local" uri="http://local/"/>
+		</namespaces>
+	</xmlpeek>
+	<property name="internal.srcFilename" value="${string::replace(string::replace(tmp.srcFilename, '%VERSION%', release.version), '%DATE%', internal.userFriendlyDate)}" overwrite="false"/>
+	<xmlpeek file="pubinfo/projectinfo.xml" xpath="/local:project/local:downloads/local:file[@type = 'bin']" property="tmp.binFilename">
+		<namespaces>
+			<namespace prefix="local" uri="http://local/"/>
+		</namespaces>
+	</xmlpeek>
+	<property name="internal.binFilename" value="${string::replace(string::replace(tmp.binFilename, '%VERSION%', release.version), '%DATE%', internal.userFriendlyDate)}" overwrite="false"/>
+	<xmlpeek file="pubinfo/projectinfo.xml" xpath="/local:project/local:downloads/local:file[@type = 'chm']" property="tmp.chmFilename">
+		<namespaces>
+			<namespace prefix="local" uri="http://local/"/>
+		</namespaces>
+	</xmlpeek>
+	<property name="internal.chmFilename" value="${string::replace(string::replace(tmp.chmFilename, '%VERSION%', release.version), '%DATE%', internal.userFriendlyDate)}" overwrite="false"/>
+	
+	<!-- ================ Documentation ================ -->
+	
+	<target name="help">
+		<echo>RdfTurtleWriter</echo>
+		<echo>===============</echo>
+		<echo>This Nant build file offers the following targets:</echo>
+		<echo>== release ==</echo>
+		<echo>Assembles all release files. This requires NuGet to be installed</echo>
+		<echo>on the search path. The Release version of the assemblies and</echo>
+		<echo>the CHM help file must already have been built.</echo>
+		<echo>== publish ==</echo>
+		<echo>Publishes the files. The release target must have been run before.</echo>
+		<echo>The following steps are executed:</echo>
+		<echo>* Publish on NuGet:</echo>
+		<echo>  (publish-NuGet)</echo>
+		<echo>  NuGet must be on the path and a valid API key must be set.</echo>
+		<echo>* Publish as a Github release:</echo>
+		<echo>  (publish-gh-release)</echo>
+		<echo>  WinSCP and curl must be on the path. The file keys/apikeys.xml</echo>
+		<echo>  must have been created and supplied with the required</echo>
+		<echo>  information.</echo>
+		<echo>* Publish the API documentation on the Github project page:</echo>
+		<echo>  (publish-help)</echo>
+		<echo>  WinSCP and plink must be on the path. The file keys/apikeys.xml</echo>
+		<echo>  must have been created and supplied with the required</echo>
+		<echo>  information.</echo>
+		<echo>  The web-based API documentation must have been built.</echo>
+	</target>
+	
+	<!-- ================ Prepare Release Files ================ -->
+	
+	<patternset id="srcfiles">
+		<include name="**/*.sln"/>
+		<include name="**/*.csproj"/>
+		<include name="**/*.cs"/>
+		<include name="**/*.xaml"/>
+		<include name="**/*.ico"/>
+		<include name="**/*.png"/>
+		<include name="**/readme.txt"/>
+		<include name="**/*.LICENSE"/>
+		<include name="**/*.snk"/>
+		<include name="**/*.resx"/>
+		<include name="**/*.config"/>
+		<exclude name="**/bin/**"/>
+		<exclude name="**/obj/**"/>
+	</patternset>
+
+	<patternset id="binfiles">
+		<include name="*.dll"/>
+		<include name="*.xml"/>
+		<exclude name="*.CodeAnalysisLog.xml"/>
+	</patternset>
+	
+	<target name="build-xslt-extensions">
+		<mkdir dir="bin/build/xslt"/>
+		<csc output="bin/build/xslt/XsltExtensions.dll" target="library">
+			<sources>
+				<include name="tools/XsltStringExtensions.cs"/>
+			</sources>
+		</csc>
+	</target>
+
+	<target name="prepare-readme" depends="build-xslt-extensions">
+		<mkdir dir="buildtmp/readme"/>
+		<copy file="COPYING" tofile="buildtmp/readme/COPYING"/>
+		<copy file="readme.txt" tofile="buildtmp/readme/readme.txt">
+			<filterchain>
+				<replacetokens begintoken="%" endtoken="%">
+					<token key="VERSION" value="${release.version}"/>
+					<token key="DATE" value="${internal.userFriendlyDate}"/>
+				</replacetokens>
+			</filterchain>
+		</copy>
+		<style style="tools/CreateTextChangeLog.xsl" in="pubinfo/projectinfo.xml" out="buildtmp/readme/changelog.txt">
+			<parameters>
+				<parameter name="ReleaseVersion" value="${release.version}"/>
+				<parameter name="ReleaseDate" value="${internal.userFriendlyDate}"/>
+			</parameters>
+			<extensionobjects>
+				<extensionobject namespaceuri="urn:str" typename="XsltExtensions.XsltStringExtensions" assembly="bin/build/xslt/XsltExtensions.dll"/>
+			</extensionobjects>
+		</style>
+		<style style="tools/CreateHtmlChangeLog.xsl" in="pubinfo/projectinfo.xml" out="release/changelog.html">
+			<parameters>
+				<parameter name="ReleaseVersion" value="${release.version}"/>
+				<parameter name="ReleaseDate" value="${internal.userFriendlyDate}"/>
+			</parameters>
+		</style>
+	</target>
+	
+	<target name="clean">
+		<delete dir="release" if="${directory::exists('release')}"/>
+		<delete dir="buildtmp" if="${directory::exists('buildtmp')}"/>
+	</target>
+	
+	<target name="prepare-release-state">
+		<xmlpeek file="pubinfo/projectinfo.xml" xpath="/local:project/local:history/local:current/local:change" property="tmp.changelogReady" failonerror="false">
+			<namespaces>
+				<namespace prefix="local" uri="http://local/"/>
+			</namespaces>
+		</xmlpeek>
+		<fail message="No changes indicated in project info file." if="${not(property::exists('tmp.changelogReady')) or (tmp.changelogReady == '')}"/>
+	</target>
+
+	<target name="release" depends="prepare-release-state,clean,prepare-readme">
+		<mkdir dir="release"/>
+		
+		<mkdir dir="buildtmp/exampleprojects"/>
+		<copy todir="buildtmp/exampleprojects">
+			<fileset basedir="src/Samples">
+				<include name="*/*.csproj"/>
+			</fileset>
+		</copy>
+		<foreach item="Folder" in="buildtmp/exampleprojects" property="foldername">
+			<copy file="src/Version.cs" tofile="${foldername}/Properties/Version.cs"/>
+			<foreach item="File" in="${foldername}" property="filename">
+				<in>
+					<items>
+						<include name="*.csproj"/>
+					</items>
+				</in>
+				<do>
+					<style style="tools/ExampleProjects.xsl" in="${filename}" out="${filename}.tmp"/>
+					<delete file="${filename}"/>
+					<move file="${filename}.tmp" tofile="${filename}"/>
+				</do>
+			</foreach>
+		</foreach>
+		
+		<tar destfile="release/${internal.binFilename}" compression="GZip">
+			<fileset basedir="bin/Release" prefix="bin">
+				<patternset refid="binfiles"/>
+			</fileset>
+			<fileset basedir="src/Samples">
+				<patternset refid="srcfiles"/>
+				<exclude name="**/*.csproj"/>
+			</fileset>
+			<fileset basedir="src/Samples">
+				<include name="*/bin/Release/*.exe"/>
+				<include name="*/bin/Release/*.dll"/>
+			</fileset>
+			<fileset basedir="buildtmp/exampleprojects">
+				<include name="*/*.csproj"/>
+				<include name="**/*.cs"/>
+			</fileset>
+			<fileset basedir="buildtmp/readme">
+				<include name="*"/>
+			</fileset>
+		</tar>
+		
+		<tar destfile="release/${internal.srcFilename}" compression="GZip">
+			<fileset basedir="src" prefix="src">
+				<patternset refid="srcfiles"/>
+			</fileset>
+			<fileset basedir="keys" prefix="keys">
+				<patternset refid="srcfiles"/>
+				<exclude name="*.xml"/>
+			</fileset>
+			<fileset>
+				<include name="doc/*.shfbproj"/>
+				<include name="doc/additional/*.xml"/>
+			</fileset>
+			<fileset basedir="buildtmp/readme">
+				<include name="*"/>
+			</fileset>
+		</tar>
+		
+		<tar destfile="release/${internal.chmFilename}" compression="GZip">
+			<fileset basedir="doc/Help">
+				<include name="*.chm"/>
+			</fileset>
+			<fileset basedir="buildtmp/readme">
+				<include name="*"/>
+			</fileset>
+		</tar>
+		
+		<copy file="buildtmp/readme/readme.txt" tofile="release/readme.txt"/>
+		<copy file="buildtmp/readme/changelog.txt" tofile="release/changelog.txt"/>
+		
+		<copy todir="release" flatten="true">
+			<fileset>
+				<include name="pubinfo/*.nuspec"/>
+			</fileset>
+			<filterchain>
+				<replacetokens begintoken="%" endtoken="%">
+					<token key="VERSION" value="${release.version}"/>
+				</replacetokens>
+			</filterchain>
+		</copy>
+		<foreach item="File" property="filename">
+			<in>
+				<items>
+					<include name="release/*.nuspec"/>
+				</items>
+			</in>
+			<do>
+				<exec program="cmd">
+					<arg value="/c"/>
+					<arg value="NuGet"/>
+					<arg value="Pack"/>
+					<arg value="${filename}"/>
+					<arg value="-OutputDirectory"/>
+					<arg value="release"/>
+				</exec>
+			</do>
+		</foreach>
+		
+		<call target="cleanup-after-release"/>
+	</target>
+	
+	<target name="cleanup-after-release">
+		<delete dir="buildtmp" if="${directory::exists('buildtmp')}"/>
+	</target>
+	
+	<!-- ================ Publication ================ -->
+	
+	<xmlpeek file="keys/apikeys.xml" xpath="/keys/key[@id = 'GithubUser']/@value" property="internal.GithubUser"/>
+	<xmlpeek file="keys/apikeys.xml" xpath="/keys/key[@id = 'localWebPath']/@value" property="internal.WebPath"/>
+	
+	<target name="publish">
+		<call target="publish-gh-release"/>
+		<call target="publish-web"/>
+		<call target="publish-help" if="${internal.prerelease=='no'}"/>
+		<call target="publish-NuGet"/>
+		
+		<call target="advance-changelog"/>
+	</target>
+	
+	<target name="publish-NuGet">
+		<exec program="cmd" workingdir="release">
+			<arg value="/c"/>
+			<arg value="NuGet"/>
+			<arg value="push"/>
+			<arg value="*.nupkg"/>
+		</exec>
+	</target>
+	
+	<target name="publish-gh-release">
+		<solution configuration="Release" solutionfile="tools/DeploymentLibs/DeploymentLibs.sln" outputdir="bin/build/deployment"/>
+		
+		<xmlpeek file="keys/apikeys.xml" xpath="/keys/key[@id = 'GithubPW']/@value" property="internal.GithubPW"/>
+		
+		<script language="c#">
+			<references>
+				<include name="bin/build/deployment/GithubDeployment.dll"/>
+			</references>
+			<imports>
+				<import namespace="System.IO"/>
+			</imports>
+			<code>
+				<![CDATA[
+					public static void ScriptMain(Project project)
+					{
+						Deployment.Github.Worker.Publish(Path.Combine(project.BaseDirectory, "pubinfo", "projectinfo.xml"),
+														 Path.Combine(project.BaseDirectory, "release"),
+														 project.Properties["release.version"],
+														 project.Properties["internal.userFriendlyDate"],
+														 project.Properties["internal.isoDate"],
+														 project.Properties["internal.GithubUser"],
+														 project.Properties["internal.GithubPW"]);
+					}
+				]]>
+			</code>
+		</script>
+	</target>
+	
+	<target name="publish-web">
+		<copy file="release/changelog.html" tofile="${internal.WebPath}/"/>
+	</target>
+	
+	<target name="publish-help">
+		<delete dir="${internal.WebPath}/api"/>
+		
+		<copy todir="${internal.WebPath}/api">
+			<fileset basedir="doc/Help">
+				<include name="**/*"/>
+				<exclude name="*.chm"/>
+				<exclude name="LastBuild.log"/>
+				<exclude name="*.chw"/>
+			</fileset>
+		</copy>
+	</target>
+	
+	<target name="advance-changelog" depends="build-xslt-extensions">
+		<style style="tools/AdvanceChangelog.xsl" in="pubinfo/projectinfo.xml" out="release/projectinfo_new.xml">
+			<parameters>
+				<parameter name="ReleaseDateTime" value="${internal.isoDate}"/>
+				<parameter name="ReleaseVersion" value="${release.version}"/>
+				<parameter name="ReleaseState" value="${internal.ReleaseState}"/>
+				<parameter name="ReleaseDate" value="${internal.userFriendlyDate}"/>
+			</parameters>
+			<extensionobjects>
+				<extensionobject namespaceuri="urn:str" typename="XsltExtensions.XsltStringExtensions" assembly="bin/build/xslt/XsltExtensions.dll"/>
+			</extensionobjects>
+		</style>
+		
+		<copy file="release/projectinfo_new.xml" tofile="pubinfo/projectinfo.xml" overwrite="true"/>
+	</target>
+	
+</project>

@@ -1,0 +1,5 @@
+﻿<keys>
+	<key id="GithubUser" value=""/><!-- Github user name -->
+	<key id="GithubPW" value=""/><!-- Github password -->
+	<key id="localWebPath" value=""/><!-- relative path from project to working copy of website repository -->
+</keys>
